@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using SteamPosters.Core.Steam;
 
 namespace SteamPosters.Artwork.SteamGridDb;
@@ -37,15 +39,9 @@ public sealed class SteamGridDbOptions
 }
 
 /// <summary>Client for the SteamGridDB v2 API. Each user supplies their own free API key.</summary>
-public sealed class SteamGridDbProvider : IArtworkProvider
+public sealed partial class SteamGridDbProvider : IArtworkProvider
 {
     private const string Filters = "types=static&nsfw=false&humor=false&epilepsy=false";
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        PropertyNameCaseInsensitive = true,
-    };
 
     private readonly HttpClient _http;
     private readonly string _apiKey;
@@ -66,7 +62,7 @@ public sealed class SteamGridDbProvider : IArtworkProvider
     public async Task<IReadOnlyList<ProviderGame>> SearchGamesAsync(string term, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(term)) return [];
-        var items = await GetDataAsync<List<SearchItem>>(
+        var items = await GetDataAsync(SteamGridDbJson.Default.EnvelopeListSearchItem,
             "search/autocomplete/" + Uri.EscapeDataString(term.Trim()), cancellationToken);
         return (items ?? [])
             .Select(i => new ProviderGame(i.Id.ToString(), i.Name, ReleaseYear(i.ReleaseDate), i.Verified))
@@ -75,7 +71,7 @@ public sealed class SteamGridDbProvider : IArtworkProvider
 
     public async Task<IReadOnlyList<ArtworkImage>> GetArtworkAsync(string gameId, ArtworkKind kind, CancellationToken cancellationToken = default)
     {
-        var items = await GetDataAsync<List<ImageItem>>(ArtworkPath(gameId, kind), cancellationToken);
+        var items = await GetDataAsync(SteamGridDbJson.Default.EnvelopeListImageItem, ArtworkPath(gameId, kind), cancellationToken);
         var images = (items ?? [])
             .Where(i => Uri.IsWellFormedUriString(i.Url, UriKind.Absolute))
             .Select(i => new ArtworkImage(
@@ -102,7 +98,7 @@ public sealed class SteamGridDbProvider : IArtworkProvider
     }
 
     /// <summary>Sends a GET and unwraps {"success":true,"data":...}. HTTP 404 returns default ("nothing found").</summary>
-    private async Task<T?> GetDataAsync<T>(string relativePath, CancellationToken cancellationToken)
+    private async Task<T?> GetDataAsync<T>(JsonTypeInfo<Envelope<T>> typeInfo, string relativePath, CancellationToken cancellationToken)
     {
         var uri = new Uri(_options.BaseAddress, relativePath);
         for (var attempt = 0; ; attempt++)
@@ -126,7 +122,7 @@ public sealed class SteamGridDbProvider : IArtworkProvider
             Envelope<T>? envelope = null;
             try
             {
-                envelope = JsonSerializer.Deserialize<Envelope<T>>(body, JsonOptions);
+                envelope = JsonSerializer.Deserialize(body, typeInfo);
             }
             catch (JsonException ex) when (response.IsSuccessStatusCode)
             {
@@ -193,4 +189,10 @@ public sealed class SteamGridDbProvider : IArtworkProvider
         string? Mime, string Url, string? Thumb, int Upvotes, int Downvotes, AuthorItem? Author);
 
     private sealed record AuthorItem(string? Name);
+
+    /// <summary>Source-generated JSON (no reflection), so trimmed or AOT builds keep working.</summary>
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true)]
+    [JsonSerializable(typeof(Envelope<List<SearchItem>>))]
+    [JsonSerializable(typeof(Envelope<List<ImageItem>>))]
+    private sealed partial class SteamGridDbJson : JsonSerializerContext;
 }
