@@ -1,6 +1,6 @@
 # Steam Posters: implementation plan
 
-Status: **decisions made** (section 9). Building step by step, checking in after each step.
+Status: **decisions made** (section 8). Building step by step, checking in after each step.
 GUI mockups: see the Steam Posters project thread (mockups.html).
 
 ---
@@ -45,7 +45,7 @@ Artwork files Steam reads for a non-Steam game with id `N`:
 
 1. **Steam shows very little "metadata" for non-Steam games.** It displays the name, the four artwork pieces, and the icon. It does **not** show a description, developer, release date, genre or review score for non-Steam games, no matter what we write. So "metadata" in practice means: name + poster + banner + hero + logo + icon. Collections (Steam's folders/categories) are the one other thing, see point 5.
 2. **Steam must be closed while we edit `shortcuts.vdf`.** Steam keeps the file in memory and overwrites it when it exits, so edits made while it runs get lost. Artwork-only changes can be written while Steam runs, but Steam often doesn't redraw them until a restart.
-3. **Remote Play is the big unknown.** You browse these games from another device via Remote Play. Custom artwork lives on the PC it was set on and is **not** synced by Steam Cloud. Whether the *client* device shows the host's custom posters for streamed non-Steam games is untested; step 0 tests it on your setup first. If the client doesn't pick them up, the fix is to also run the app on the client device and have it place artwork for the host's games there (the ids are the same). That would be a "Remote Play mode" feature.
+3. **Remote streaming: not a concern for you.** Custom artwork lives on the PC it was set on and is **not** synced by Steam Cloud. You stream with Moonlight/Sunshine, which shows the host PC's own Steam (with its artwork), so nothing extra is needed on client devices. A "Remote Play mode" (placing art on Steam Remote Play clients) stays a possible later feature for other users.
 4. **Matching is a guess.** Exe names like `Launcher.exe`, `game.exe`, `start_protected_game.exe` (Epic/EAC games) say nothing. The app will use the folder name too and show a confidence level, but you'll sometimes need to pick the right game from a search box. Nothing gets written without you seeing it first.
 5. **Collections are fragile.** Newer Steam stores collections in a cloud-synced JSON/database blob that Valve changes without notice. Collections are out of scope for version 1.
 6. **Artwork source terms.** SteamGridDB (community uploaded, made exactly for this) needs a free API key per user. Art is community made, so occasionally you'll see fan art; the app will prefer "official" and highest-voted images.
@@ -99,11 +99,10 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 
 ## 7. Build plan (steps, in order)
 
-**Step 0: Spike on your machine (small throwaway script, before any app code).**
-- Read your real `shortcuts.vdf`, print the games and ids (read-only).
-- Drop a test poster for one game, restart Steam, confirm it shows in desktop + Big Picture (only after you OK it).
-- Confirm on your **Remote Play client** whether it shows. This decides whether "Remote Play mode" is needed.
-- Nothing in your Steam folder is changed beyond one test image, which we remove afterwards.
+**Step 0: Spike on your machine. Done (2026-10-06).**
+- Read-only script `tools/spike/List-NonSteamGames.ps1` read the real `shortcuts.vdf`: 7 non-Steam games, none with artwork or icons yet.
+- Finding: **no stored `appid` matches `crc32(exe + name) | 0x80000000`**, and two entries with identical Exe + AppName have different stored ids. Current Steam assigns its own ids, so the stored `appid` is the only reliable key for artwork; the computed id is a fallback for entries that lack one. Duplicate Exe + AppName entries must be handled.
+- Test poster and Remote Play client checks skipped by decision: the user streams with Moonlight/Sunshine (host-side Steam), so client-side art is not needed.
 
 **Step 1: Steam layer.** Locator, binary VDF reader/writer, shortcut id calc, grid folder writer, backups. Unit tests with sample files (never your live files).
 
