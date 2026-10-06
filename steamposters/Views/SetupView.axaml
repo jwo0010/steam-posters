@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:steamposters.ViewModels"
+             xmlns:steam="using:SteamPosters.Core.Steam"
+             x:Class="steamposters.Views.SetupView"
+             x:DataType="vm:SetupViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="14" MaxWidth="720" HorizontalAlignment="Left">
+            <TextBlock Classes="h1" Text="Welcome to Steam Posters" />
+            <TextBlock Classes="hint" Text="This finds the non-Steam games in your library, matches each one to the real game, and gives it a poster, banner, hero image, logo, icon and a clean name. Nothing is changed in Steam until the last step." />
+
+            <TextBlock FontWeight="SemiBold" Text="Steam" Margin="0,10,0,0" />
+            <TextBlock IsVisible="{Binding SteamFound}" Text="{Binding SteamPath, StringFormat='Found Steam in {0}'}" />
+            <TextBlock IsVisible="{Binding !SteamFound}" Foreground="#C62828"
+                       Text="Steam wasn't found. Install Steam and log in once, then restart this app." />
+
+            <TextBlock FontWeight="SemiBold" Text="Steam account" IsVisible="{Binding SteamFound}" />
+            <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}" MinWidth="360"
+                      IsVisible="{Binding SteamFound}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="steam:SteamAccount">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding PersonaName, TargetNullValue='(unknown name)'}" />
+                            <TextBlock Classes="hint" Text="{Binding ShortcutCount, StringFormat='· {0} non-Steam games'}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock FontWeight="SemiBold" Text="SteamGridDB key" Margin="0,10,0,0" />
+            <TextBlock Classes="hint" Text="Artwork comes from SteamGridDB, which needs a free personal key. Log in there with Steam, open the API page, copy the key and paste it below. It's stored encrypted for your Windows user." />
+            <HyperlinkButton Content="Get a free key" NavigateUri="https://www.steamgriddb.com/profile/preferences/api" Padding="0" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Text="{Binding ApiKeyInput}" PasswordChar="•" PlaceholderText="Paste your key here" Width="360" />
+                <Button Content="Check and save" Command="{Binding SaveKeyCommand}" />
+                <Button Content="Forget saved key" Command="{Binding ForgetKeyCommand}" IsVisible="{Binding HasValidKey}" />
+            </StackPanel>
+            <TextBlock Text="{Binding KeyStatus}" TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

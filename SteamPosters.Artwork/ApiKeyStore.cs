@@ -5,12 +5,23 @@ using SteamPosters.Core.IO;
 
 namespace SteamPosters.Artwork;
 
+/// <summary>Where the SteamGridDB API key is kept between runs.</summary>
+public interface IApiKeyStore
+{
+    /// <summary>The saved key, or null if there is none or it can't be read.</summary>
+    string? Load();
+
+    void Save(string apiKey);
+
+    void Delete();
+}
+
 /// <summary>
 /// Stores the user's SteamGridDB API key encrypted with Windows DPAPI (current user only),
 /// in %APPDATA%\SteamPosters\settings. The key is never written in plain text.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class ApiKeyStore
+public sealed class ApiKeyStore : IApiKeyStore
 {
     public const string FileName = "steamgriddb.key";
 
