@@ -1,0 +1,132 @@
+# Steam Posters: implementation plan
+
+Status: **decisions made** (section 9). Building step by step, checking in after each step.
+GUI mockups: see the Steam Posters project thread (mockups.html).
+
+---
+
+## 1. What we are building
+
+A small Windows desktop app that:
+
+1. Finds your Steam install and the Steam account(s) on this PC.
+2. Lists every **non-Steam game** you already added to that account.
+3. Guesses the real game for each one (e.g. `Cyberpunk2077.exe` becomes "Cyberpunk 2077"), downloads matching artwork, and offers a clean display name.
+4. Lets you review and swap anything you don't like, then writes it all into Steam in one click.
+5. Restarts Steam so the changes show up in the desktop library and Big Picture.
+
+## 2. How Steam stores this (the facts the design rests on)
+
+| Thing | Where it lives | Notes |
+|---|---|---|
+| Steam install | Registry `HKCU\Software\Valve\Steam\SteamPath` | Fallback: `C:\Program Files (x86)\Steam` |
+| Accounts on this PC | `{Steam}\config\loginusers.vdf` and folders in `{Steam}\userdata\{id}` | Each Steam account has its own non-Steam game list |
+| Non-Steam games | `{Steam}\userdata\{id}\config\shortcuts.vdf` | **Binary** VDF file. Fields per game: `appid`, `AppName`, `Exe`, `StartDir`, `icon`, `LaunchOptions`, `IsHidden`, `AllowOverlay`, `tags`, `LastPlayTime`, and a few more |
+| Artwork | `{Steam}\userdata\{id}\config\grid\` | Files named by the game's shortcut id (see below) |
+
+Artwork files Steam reads for a non-Steam game with id `N`:
+
+| File | What it is | Where you see it | Recommended size |
+|---|---|---|---|
+| `Np.png` | Poster (portrait "capsule") | Library grid, Big Picture library | 600 x 900 |
+| `N.png` | Wide banner (horizontal capsule) | "Recent games" shelf, some Big Picture rows | 920 x 430 |
+| `N_hero.png` | Big background banner | Top of the game's page | 3840 x 1240 |
+| `N_logo.png` | Transparent game logo | Drawn on top of the hero | ~1280 wide, transparent |
+| `N.json` | Logo position on the hero | Game page | Written by Steam when you drag the logo; we can write it too |
+| icon | Small icon, path stored in `shortcuts.vdf` `icon` field | Library sidebar list, taskbar | 256 x 256 `.png`/`.ico` |
+
+`.jpg` works too. We'll save `.png` for anything with transparency and keep what the source gives otherwise.
+
+**The shortcut id.** Steam identifies a non-Steam game by a number computed from its exe path and name (`crc32(exe + name) | 0x80000000`). Recent Steam versions also store that number in `shortcuts.vdf` as `appid`. This matters because:
+- If we rename a game and Steam *recomputes* the id, all its artwork (and Steam Input config, playtime) silently detach. We always read the stored `appid` and write it back unchanged, and only compute it ourselves for very old entries that lack one.
+- Renaming is therefore safe in our app, and renaming in Steam's own UI afterwards stays safe too as long as the stored `appid` is present.
+
+## 3. Limitations you should know up front
+
+1. **Steam shows very little "metadata" for non-Steam games.** It displays the name, the four artwork pieces, and the icon. It does **not** show a description, developer, release date, genre or review score for non-Steam games, no matter what we write. So "metadata" in practice means: name + poster + banner + hero + logo + icon. Collections (Steam's folders/categories) are the one other thing, see point 5.
+2. **Steam must be closed while we edit `shortcuts.vdf`.** Steam keeps the file in memory and overwrites it when it exits, so edits made while it runs get lost. Artwork-only changes can be written while Steam runs, but Steam often doesn't redraw them until a restart.
+3. **Remote Play is the big unknown.** You browse these games from another device via Remote Play. Custom artwork lives on the PC it was set on and is **not** synced by Steam Cloud. Whether the *client* device shows the host's custom posters for streamed non-Steam games is untested; step 0 tests it on your setup first. If the client doesn't pick them up, the fix is to also run the app on the client device and have it place artwork for the host's games there (the ids are the same). That would be a "Remote Play mode" feature.
+4. **Matching is a guess.** Exe names like `Launcher.exe`, `game.exe`, `start_protected_game.exe` (Epic/EAC games) say nothing. The app will use the folder name too and show a confidence level, but you'll sometimes need to pick the right game from a search box. Nothing gets written without you seeing it first.
+5. **Collections are fragile.** Newer Steam stores collections in a cloud-synced JSON/database blob that Valve changes without notice. Collections are out of scope for version 1.
+6. **Artwork source terms.** SteamGridDB (community uploaded, made exactly for this) needs a free API key per user. Art is community made, so occasionally you'll see fan art; the app will prefer "official" and highest-voted images.
+7. **Big Picture caching.** Big Picture sometimes keeps old art until Steam restarts. The restart covers this.
+8. **One account at a time.** If several Steam accounts have logged in on this PC, you pick which one to edit (defaults to the last logged in).
+9. **Windows first.** Steam on Linux / Steam Deck uses the same files in different paths, so a later port is realistic, but version 1 targets Windows.
+
+## 4. Discovery
+
+Read Steam's own list (`shortcuts.vdf`). It already knows every non-Steam game you added, wherever it's installed, so the "games spread across many folders" limitation goes away, and there's no guessing which exes are games versus uninstallers or crash reporters. Folder scanning would only matter for *adding* games Steam doesn't know about yet; that's a possible later feature.
+
+## 5. Architecture
+
+```
++-----------------------------------------------------------+
+|  UI (MVVM views, Avalonia)                                |
+|  Welcome / Scan / Review / Art picker / Apply / Settings  |
++---------------------------+-------------------------------+
+|  App services                                             |
+|  ScanService  MatchService  ApplyService  BackupService   |
+|  SteamProcessService (detect / close / restart Steam)     |
++---------------------------+-------------------------------+
+|  Steam layer              |  Providers                    |
+|  SteamLocator             |  IArtworkProvider             |
+|  ShortcutsVdf (read/write)|   - SteamGridDbProvider       |
+|  GridFolder (art files)   |   - SteamStoreProvider (later)|
+|  ShortcutId (crc calc)    |  ImageCache (on disk)         |
++---------------------------+-------------------------------+
+|  Storage: %APPDATA%\SteamPosters\ (settings, cache,       |
+|  backups, log)                                            |
++-----------------------------------------------------------+
+```
+
+Key design rules:
+- **Steam layer has no UI and no network.** Pure file handling with unit tests against sample `shortcuts.vdf` files, so the risky part (writing Steam's files) is the best tested part.
+- **Providers are pluggable.** SteamGridDB first; others slot in behind the same interface.
+- **Every apply is backed up first.** `shortcuts.vdf` and any art we replace are copied to `%APPDATA%\SteamPosters\backups\{timestamp}\`. A "Restore" button rolls back.
+- **Write safely.** Write to a temp file, verify it parses, then swap it in. Never leave a half-written `shortcuts.vdf`.
+- **We only touch what you approved.** Fields we don't understand in `shortcuts.vdf` are preserved byte for byte.
+
+Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update, published from GitHub Releases.
+
+## 6. The user flow (wizard)
+
+1. **First run:** app finds Steam, picks the last-logged-in account, asks for a SteamGridDB key (with a "Get a free key" button that opens the page, and a paste box). Key is stored with Windows DPAPI encryption, not plain text.
+2. **Scan:** reads the non-Steam list, shows each game with its current art (or a blank).
+3. **Auto-match:** for each game, searches by cleaned-up name and folder name, picks best match + best art. Shows a confidence badge: Matched / Check this / Not found.
+4. **Review:** fix the "Check this" ones, swap any art you dislike, untick games you want left alone (tools, emulators).
+5. **Apply:** "Steam needs to close to save these. Close and apply?" Yes: backup, write, reopen Steam. No: the app waits until you close Steam yourself, then applies.
+6. **Done:** summary, plus a "Restore previous" button.
+
+## 7. Build plan (steps, in order)
+
+**Step 0: Spike on your machine (small throwaway script, before any app code).**
+- Read your real `shortcuts.vdf`, print the games and ids (read-only).
+- Drop a test poster for one game, restart Steam, confirm it shows in desktop + Big Picture (only after you OK it).
+- Confirm on your **Remote Play client** whether it shows. This decides whether "Remote Play mode" is needed.
+- Nothing in your Steam folder is changed beyond one test image, which we remove afterwards.
+
+**Step 1: Steam layer.** Locator, binary VDF reader/writer, shortcut id calc, grid folder writer, backups. Unit tests with sample files (never your live files).
+
+**Step 2: SteamGridDB provider + image cache.** Search, fetch grids/heroes/logos/icons, filter by size and style, cache to disk, respect rate limits.
+
+**Step 3: Matching.** Name cleanup rules (strip `.exe`, split CamelCase, drop "Launcher", "Shipping", "Win64", etc.), use parent folder names, fuzzy scoring, confidence levels.
+
+**Step 4: GUI.** The wizard, built MVVM so the logic stays testable.
+
+**Step 5: Apply flow.** Steam close/restart (or wait for the user to do it), safe write, restore.
+
+**Step 6: Packaging.** Installer, app icon, GitHub Releases, auto-update.
+
+**Step 7 (later, optional):** Remote Play mode, collections, "add games from other launchers", Linux/Deck build, tray icon that watches for newly added games.
+
+Each step ends with something you can try, and Claude checks in before starting the next.
+
+## 8. Decisions (made 2026-10-06)
+
+1. **Tech stack:** C# / .NET 10 + Avalonia UI
+2. **Platform for v1:** Windows only
+3. **Discovery:** Steam's own non-Steam list (`shortcuts.vdf`) only, no folder scanning
+4. **Art source:** SteamGridDB, each user supplies their own free API key (more providers possible later)
+5. **Steam restart:** the app asks, then closes and reopens Steam itself; the user can decline and close/reopen Steam themselves
+6. **GUI:** the step-by-step wizard
+7. **Source control:** Claude commits locally on the user's PC; the user reviews and pushes
