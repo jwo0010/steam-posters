@@ -104,7 +104,11 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 - Finding: **no stored `appid` matches `crc32(exe + name) | 0x80000000`**, and two entries with identical Exe + AppName have different stored ids. Current Steam assigns its own ids, so the stored `appid` is the only reliable key for artwork; the computed id is a fallback for entries that lack one. Duplicate Exe + AppName entries must be handled.
 - Test poster and Remote Play client checks skipped by decision: the user streams with Moonlight/Sunshine (host-side Steam), so client-side art is not needed.
 
-**Step 1: Steam layer.** Locator, binary VDF reader/writer, shortcut id calc, grid folder writer, backups. Unit tests with sample files (never your live files).
+**Step 1: Steam layer. Done (2026-10-06).** Locator, binary VDF reader/writer, shortcut id calc, grid folder writer, backups. Unit tests with sample files (never your live files).
+- Code: `SteamPosters.Core` (no UI, no network) and `SteamPosters.Core.Tests` (xUnit, 31 tests, synthetic files only), both in `steamposters/steamposters.sln`.
+- Binary VDF keeps raw bytes for keys and strings, keeps other known types raw, and refuses unknown types rather than guessing their size.
+- Default account: the MostRecent one in `loginusers.vdf`, else the first with non-Steam games, else the first. (On this PC no account is flagged MostRecent.)
+- Read-only check on the real `shortcuts.vdf`: parsed and re-serialized in memory, byte-identical (2693 bytes); the file was not modified.
 
 **Step 2: SteamGridDB provider + image cache.** Search, fetch grids/heroes/logos/icons, filter by size and style, cache to disk, respect rate limits.
 
