@@ -62,6 +62,45 @@ public class MatchServiceTests
         Assert.Contains(result.Alternatives, a => a.Game == Botw);
     }
 
+    /// <summary>Real SteamGridDB behaviour: unknown words are ignored, so only the spelled-out name finds TotK.</summary>
+    private sealed class AbbreviationBlindProvider : IArtworkProvider
+    {
+        private static readonly ProviderGame Zelda1986 = new("38050", "The Legend of Zelda", 1986, true);
+
+        public List<string> Searches { get; } = new();
+
+        public string Name => "Fake";
+
+        public Task<IReadOnlyList<ProviderGame>> SearchGamesAsync(string term, CancellationToken cancellationToken = default)
+        {
+            Searches.Add(term);
+            IReadOnlyList<ProviderGame> hits = term.Contains("Tears") ? [Totk, Zelda1986] : [Zelda1986, Botw];
+            return Task.FromResult(hits);
+        }
+
+        public Task<IReadOnlyList<ArtworkImage>> GetArtworkAsync(string gameId, ArtworkKind kind, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task KnownAbbreviation_IsFoundViaSpelledOutSearch_NotMatchedToPartialName()
+    {
+        var provider = new AbbreviationBlindProvider();
+        var result = await new MatchService(provider).MatchAsync("Launcher", @"""D:\Games\The Legend of Zelda - TotK\Launcher.exe""");
+
+        Assert.Equal(new[] { "The Legend of Zelda TotK", "The Legend of Zelda Tears of the Kingdom" }, provider.Searches);
+        Assert.Equal(MatchConfidence.Matched, result.Confidence);
+        Assert.Equal(Totk, result.Game);
+        Assert.Contains(result.MatchedTerm!.Source, new[] { TermSource.Folder, TermSource.Expanded }); // both score 1.0
+        Assert.True(result.Alternatives.Single(a => a.Game.Id == "38050").Score < 0.85);
+    }
+
+    [Fact]
+    public void PartialName_IsNotAStrongMatch()
+    {
+        Assert.True(NameSimilarity.Score("The Legend of Zelda TotK", "The Legend of Zelda") < 0.85);
+    }
+
     [Fact]
     public async Task StoreFolders_StillMatchStarfield()
     {

@@ -5,12 +5,16 @@ public class CandidateExtractorTests
     private static IEnumerable<(string, TermSource)> Terms(Candidates c) => c.Terms.Select(t => (t.Text, t.Source));
 
     [Fact]
-    public void LauncherExe_FallsBackToGameFolder()
+    public void LauncherExe_FallsBackToGameFolder_AndSpellsOutKnownAbbreviation()
     {
         var c = CandidateExtractor.Extract("Launcher", @"""D:\Games\The Legend of Zelda - TotK\Launcher.exe""");
 
         Assert.False(c.IsEmulatorOrTool);
-        Assert.Equal(new[] { ("The Legend of Zelda TotK", TermSource.Folder) }, Terms(c));
+        Assert.Equal(new[]
+        {
+            ("The Legend of Zelda TotK", TermSource.Folder),
+            ("The Legend of Zelda Tears of the Kingdom", TermSource.Expanded),
+        }, Terms(c));
     }
 
     [Fact]
@@ -34,6 +38,7 @@ public class CandidateExtractorTests
         Assert.Equal(new[]
         {
             ("AC Black Flag", TermSource.ExeName),
+            ("Assassin's Creed Black Flag", TermSource.Expanded),
             ("Assassins Creed Black Flag Resynced", TermSource.Folder),
         }, Terms(c));
     }
@@ -87,5 +92,18 @@ public class CandidateExtractorTests
         var c = CandidateExtractor.Extract("Avowed", @"""E:\games\Avowed\Avowed\Avowed.exe""", @"-dx12 ""D:\mods\something.pak""");
 
         Assert.Equal(new[] { ("Avowed", TermSource.ExeName) }, Terms(c));
+    }
+
+    [Fact]
+    public void UnknownAbbreviation_AddsSearchOnlyTermWithoutIt()
+    {
+        var c = CandidateExtractor.Extract("Space Hunters XyZ", @"C:\x\sh.exe");
+
+        Assert.Equal(new[]
+        {
+            ("Space Hunters XyZ", TermSource.AppName),
+            ("Space Hunters", TermSource.SearchOnly),
+            ("sh", TermSource.ExeName),
+        }, Terms(c));
     }
 }

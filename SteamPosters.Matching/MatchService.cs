@@ -95,6 +95,8 @@ public sealed class MatchService(IArtworkProvider provider, MatchOptions? option
             return new MatchResult(index, appId, appName, MatchConfidence.NotFound, null, [], terms, candidates.IsEmulatorOrTool, reason);
         }
 
+        // Search-only terms widen the search but never score: a shortened term would match the wrong game exactly.
+        var scoringTerms = terms.Where(t => t.Source != TermSource.SearchOnly).ToList();
         var best = new Dictionary<string, MatchCandidate>();
         foreach (var term in terms.Take(_options.MaxSearches))
         {
@@ -102,7 +104,7 @@ public sealed class MatchService(IArtworkProvider provider, MatchOptions? option
             foreach (var game in games)
             {
                 // Score against every term: a folder search can find what the app name describes best.
-                var scored = terms.Select(t => new MatchCandidate(game, Score(t.Text, game), t)).MaxBy(c => c.Score)!;
+                var scored = scoringTerms.Select(t => new MatchCandidate(game, Score(t.Text, game), t)).MaxBy(c => c.Score)!;
                 if (!best.TryGetValue(game.Id, out var existing) || scored.Score > existing.Score)
                     best[game.Id] = scored;
             }
