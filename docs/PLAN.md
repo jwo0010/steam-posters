@@ -115,9 +115,16 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 - Ranking: drop NSFW / humor / epilepsy-warning images, prefer Steam's recommended size, then style ("official" logos and icons, "alternate" posters and banners), then score, then upvotes.
 - Limits: at most 4 API calls at once, 30 s timeout per call, HTTP 429 retried up to 3 times honouring Retry-After (capped at 30 s).
 - API key: stored with Windows DPAPI (current user) in `%APPDATA%\SteamPosters\settings`, never in plain text.
-- Image cache: `%LOCALAPPDATA%\SteamPosters\cache` (local, so images don't roam), 20 MB cap per image, PNG / JPEG / WebP / ICO accepted by magic number. **WebP caveat:** Steam's grid folder only reads `.png` and `.jpg`, so WebP images are flagged `NeedsConversion`; conversion is left for the apply step (step 5). Art requests don't filter by format, so some SteamGridDB results may be WebP.
+- Image cache: `%LOCALAPPDATA%\SteamPosters\cache` (local, so images don't roam), 20 MB cap per image, PNG / JPEG / WebP / ICO accepted by magic number. **WebP caveat:** Steam's grid folder only reads `.png` and `.jpg`, so WebP images are flagged `NeedsConversion`; **Decided (2026-10-06): convert WebP to PNG in step 5 using SkiaSharp**, which the app already gets through Avalonia (no new dependency). Art requests don't filter WebP out.
 
-**Step 3: Matching.** Name cleanup rules (strip `.exe`, split CamelCase, drop "Launcher", "Shipping", "Win64", etc.), use parent folder names, fuzzy scoring, confidence levels.
+**Step 3: Matching. Done (2026-10-06).** Name cleanup rules (strip `.exe`, split CamelCase, drop "Launcher", "Shipping", "Win64", etc.), use parent folder names, fuzzy scoring, confidence levels.
+- Code: `SteamPosters.Matching` (references Core and Artwork, no UI) and `SteamPosters.Matching.Tests` (fake provider, made-up paths modelled on a real library).
+- `NameCleaner`: one list of noise words and one conservative list of store/repack tags stripped from dash-joined folder names ("Some Game-FitGirl" -> "Some Game"; unknown suffixes are kept).
+- `CandidateExtractor`: search terms in order: AppName (skipped when it is just the exe name or noise), exe name, up to 3 meaningful parent folders.
+- Emulators and tools (yuzu, Ryujinx, Cemu, RetroArch, Dolphin, PCSX2, RPCS3, Xenia, PPSSPP, DuckStation, Citra, Steam ROM Manager) are recognised by exe name. A game file in LaunchOptions becomes the only search term; without one the result is Not found ("emulator, no game in launch options") so the wizard can untick it.
+- `NameSimilarity`: ignores case, accents, punctuation, a leading "The", "&" vs "and", roman vs arabic numerals; expands acronyms found in the candidate ("TotK" -> "Tears of the Kingdom", "AC" -> "Assassin's Creed"); best of word overlap and character bigram overlap. Small bonus for verified games.
+- `MatchService`: at most 4 searches per game, stops early on a strong hit; Matched (score >= 0.85 and clear of a differently named runner-up by 0.05), Check this (>= 0.5 or several close results), Not found. Returns the match, top 5 alternatives, the term that matched and the suggested display name; `MatchAllAsync` yields one result per game for progress.
+- Offline dry run on the real library: both yuzu entries and Ryujinx are emulators with no game in their launch options; "Launcher" searches its folder ("The Legend of Zelda TotK"); Starfield, ACBlackFlag and Avowed get sensible terms. A live run needs a SteamGridDB key.
 
 **Step 4: GUI.** The wizard, built MVVM so the logic stays testable.
 
