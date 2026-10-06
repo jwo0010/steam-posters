@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build steamposters/steamposters.sln -c Release
+
+      # The live SteamGridDB test skips itself: STEAMGRIDDB_API_KEY is not set here.
+      - name: Test
+        run: dotnet test steamposters/steamposters.sln -c Release --no-build
