@@ -21,7 +21,10 @@ public abstract class StepViewModel : ObservableObject
     /// <summary>Whether the Next button is enabled.</summary>
     public virtual bool CanGoNext => true;
 
-    /// <summary>Raised when <see cref="CanGoNext"/> may have changed.</summary>
+    /// <summary>Whether the Back button is enabled (off while a page is in the middle of something).</summary>
+    public virtual bool CanGoBack => true;
+
+    /// <summary>Raised when <see cref="CanGoNext"/> or <see cref="CanGoBack"/> may have changed.</summary>
     public event EventHandler? CanGoNextChanged;
 
     /// <summary>Called each time the page is shown.</summary>
@@ -33,6 +36,7 @@ public abstract class StepViewModel : ObservableObject
     protected void RaiseCanGoNextChanged()
     {
         OnPropertyChanged(nameof(CanGoNext));
+        OnPropertyChanged(nameof(CanGoBack));
         CanGoNextChanged?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using SteamPosters.Artwork;
+using SteamPosters.Core.IO;
 using SteamPosters.Core.Steam;
 using steamposters.ViewModels;
 
@@ -11,11 +12,15 @@ public sealed record AppServices(
     SteamLocator Locator,
     IApiKeyStore KeyStore,
     Func<string, IArtworkProvider> CreateProvider,
-    ImageCache Images);
+    ImageCache Images,
+    BackupService Backups,
+    Func<string, ISteamProcess> SteamProcessFor);
 
 /// <summary>State shared between wizard steps.</summary>
 public sealed class WizardSession
 {
+    public string? SteamPath { get; set; }
+
     public SteamAccount? Account { get; set; }
 
     public IArtworkProvider? Provider { get; set; }

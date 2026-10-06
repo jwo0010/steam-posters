@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using SteamPosters.Artwork;
 using SteamPosters.Artwork.SteamGridDb;
+using SteamPosters.Core.IO;
 using SteamPosters.Core.Steam;
 using steamposters.Services;
 using steamposters.ViewModels;
@@ -40,7 +41,9 @@ public partial class App : Application
             new SteamLocator(),
             keyStore,
             key => new SteamGridDbProvider(Http, key),
-            new ImageCache(Http));
+            new ImageCache(Http),
+            new BackupService(),
+            steamPath => new SteamProcess(steamPath));
     }
 
     /// <summary>Non-Windows fallback (v1 is Windows-only): the key lasts until the app closes.</summary>

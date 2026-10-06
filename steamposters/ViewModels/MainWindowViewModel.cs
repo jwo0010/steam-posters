@@ -12,8 +12,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(AppServices services)
     {
         var session = new WizardSession();
-        Steps = [new SetupViewModel(services, session), new MatchViewModel(services, session), new ReviewViewModel(services, session), new ApplyViewModel(session)];
-        foreach (var step in Steps) step.CanGoNextChanged += (_, _) => NextCommand.NotifyCanExecuteChanged();
+        Steps = [new SetupViewModel(services, session), new MatchViewModel(services, session), new ReviewViewModel(services, session), new ApplyViewModel(services, session)];
+        foreach (var step in Steps) step.CanGoNextChanged += (_, _) => { NextCommand.NotifyCanExecuteChanged(); BackCommand.NotifyCanExecuteChanged(); };
         _currentStep = Steps[0];
         _currentStep.IsCurrent = true;
     }
@@ -51,7 +51,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         await CurrentStep.OnEnterAsync();
     }
 
-    private bool CanGoBack() => Index > 0;
+    private bool CanGoBack() => Index > 0 && CurrentStep.CanGoBack;
 
     [RelayCommand(CanExecute = nameof(CanGoBack))]
     private async Task BackAsync()

@@ -3,17 +3,66 @@
              xmlns:vm="using:steamposters.ViewModels"
              x:Class="steamposters.Views.ApplyView"
              x:DataType="vm:ApplyViewModel">
-    <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Left">
-        <TextBlock Classes="h1" Text="Ready to apply" />
-        <TextBlock Classes="hint" Text="These changes will be written into Steam. Steam has to close while the game list is saved; the app will ask first, back everything up, and reopen Steam afterwards." />
-        <ItemsControl ItemsSource="{Binding Lines}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="x:String">
-                    <TextBlock Text="{Binding}" Margin="0,2" />
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Button Content="Apply to Steam" IsEnabled="False" Classes="accent" />
-        <TextBlock Classes="hint" Text="Applying is the next build step (step 5); this preview writes nothing." />
-    </StackPanel>
+    <ScrollViewer>
+        <StackPanel Spacing="12" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Classes="h1" Text="Apply to Steam" />
+
+            <!-- What will change -->
+            <StackPanel Spacing="10" IsVisible="{Binding ShowSummary}">
+                <TextBlock Classes="hint" Text="These changes will be written into Steam. Everything is backed up first, and you can restore it afterwards. Steam has to be closed while the files are saved." />
+                <ItemsControl ItemsSource="{Binding Lines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{Binding}" Margin="0,2" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <CheckBox Content="Reopen Steam when done" IsChecked="{Binding ReopenSteam}" />
+                <Button Content="Apply to Steam" Command="{Binding ApplyCommand}" Classes="accent" />
+            </StackPanel>
+
+            <!-- Steam is running: ask how to close it -->
+            <Border IsVisible="{Binding IsAsking}" Background="#20B26A00" CornerRadius="6" Padding="14">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                    <TextBlock Classes="hint" Text="Steam keeps its game list in memory and overwrites the file when it exits, so it can't stay open while the names are saved." />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Close Steam and apply" Command="{Binding CloseSteamForMeCommand}" Classes="accent" />
+                        <Button Content="I'll close it myself" Command="{Binding CloseSteamMyselfCommand}" />
+                        <Button Content="Cancel" Command="{Binding CancelCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Waiting for the user to close Steam -->
+            <StackPanel IsVisible="{Binding IsWaitingForUser}" Spacing="8">
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                <ProgressBar IsIndeterminate="True" Width="300" HorizontalAlignment="Left" />
+                <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            </StackPanel>
+
+            <!-- Working -->
+            <StackPanel IsVisible="{Binding IsBusy}" Spacing="8">
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                <ProgressBar IsIndeterminate="True" Width="300" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Finished (or failed) -->
+            <StackPanel IsVisible="{Binding IsFinished}" Spacing="10">
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Restore previous" Command="{Binding RestoreCommand}" />
+                    <Button Content="Start Steam" Command="{Binding StartSteamCommand}" />
+                </StackPanel>
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding Log}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" Classes="hint" FontSize="12" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>
