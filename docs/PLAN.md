@@ -133,7 +133,12 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 - The approved changes are collected in an `ApplyPlan` (per game: shortcut index, appid, new name if changed, chosen image per art piece), which step 5 writes into Steam.
 - Tests: `SteamPosters.App.Tests` drives the view models end to end with a fake SteamGridDB, a fake key store and a made-up Steam folder.
 
-**Step 5: Apply flow.** Steam close/restart (or wait for the user to do it), safe write, restore.
+**Step 5: Apply flow. Done (2026-10-06).** Steam close/restart (or wait for the user to do it), safe write, restore.
+- Order: download every chosen image at full resolution and convert it (WebP and ICO become PNG with SkiaSharp; icons are always PNG), **then** close Steam, so Steam is only down for the quick file writes.
+- Closing Steam: if it is running, the app asks: "Close Steam and apply" (sends `steam.exe -shutdown`, waits up to 60 s, then reopens Steam if "Reopen Steam when done" is ticked), "I'll close it myself" (waits until Steam has exited; also the fallback when Steam ignores the shutdown), or "Cancel" (nothing changed). Back is disabled while this runs.
+- Writing: backup first (`shortcuts.vdf` and every art file that will be replaced or created, into `%APPDATA%\SteamPosters\backups\{timestamp}\`), then art files into `grid\`, then `shortcuts.vdf` is read fresh (Steam rewrites it on exit) and saved safely with the new names and icon paths. Shortcuts are found by index and appid, or by appid if Steam reordered them. Old entries without a stored appid get their current id pinned before a rename, so their art stays attached.
+- Any error after the backup restores it automatically ("everything was put back as it was"). After a successful apply, "Restore previous" puts back every file from that backup (closing Steam the same way) and removes files the apply created.
+- Tests: `ApplyTests` covers Steam closed / running / ignoring shutdown / closed by the user / cancel, restore, automatic rollback, WebP conversion and appid pinning, all on a made-up Steam folder with a pretend Steam client. The real `SteamProcess` (steam.exe -shutdown and restart) is only exercised on a real apply.
 
 **Step 6: Packaging.** Installer, app icon, GitHub Releases, auto-update.
 

@@ -116,6 +116,7 @@ public sealed partial class SetupViewModel : StepViewModel
 
     public override Task<bool> OnLeaveAsync()
     {
+        _session.SteamPath = SteamPath;
         _session.Account = SelectedAccount;
         return Task.FromResult(SelectedAccount is not null && _session.Provider is not null);
     }

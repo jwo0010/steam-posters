@@ -2,7 +2,7 @@
 
 A small Windows desktop app (.NET 10 + Avalonia) that finds the non-Steam games in your Steam library, matches each one to the real game, and adds posters, banners, hero images, logos, icons and clean display names so they look and feel like native Steam games. See [docs/PLAN.md](docs/PLAN.md) for the full implementation plan.
 
-**Status:** Steps 0-4 done (read-only spike, Steam layer, SteamGridDB artwork provider, matching, wizard GUI); step 5 (apply into Steam) next. Run the app with `dotnet run --project steamposters` (it writes nothing to Steam yet).
+**Status:** Steps 0-5 done (read-only spike, Steam layer, SteamGridDB artwork provider, matching, wizard GUI, apply into Steam with backup and restore); step 6 (packaging) next. Run the app with `dotnet run --project steamposters`.
 
 ## Layout
 
