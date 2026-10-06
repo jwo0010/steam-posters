@@ -144,7 +144,7 @@ public sealed partial class ArtSlotViewModel(ArtworkKind kind, string? existingP
     public ObservableCollection<ArtOptionViewModel> Options { get; } = new();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PreviewPath))]
+    [NotifyPropertyChangedFor(nameof(PreviewPath), nameof(LargePreviewPath))]
     private ArtOptionViewModel? _selected;
 
     [ObservableProperty]
@@ -153,10 +153,17 @@ public sealed partial class ArtSlotViewModel(ArtworkKind kind, string? existingP
     [ObservableProperty]
     private bool _isLoaded;
 
+    /// <summary>Whether this piece is the one open in the Review picker.</summary>
+    [ObservableProperty]
+    private bool _isActive;
+
     [ObservableProperty]
     private string? _error;
 
     public string? PreviewPath => Selected?.ThumbnailPath ?? ExistingPath;
+
+    /// <summary>Best available image for the big preview: full resolution, then thumbnail, then Steam's current file.</summary>
+    public string? LargePreviewPath => Selected?.FullImagePath ?? PreviewPath;
 
     partial void OnSelectedChanged(ArtOptionViewModel? oldValue, ArtOptionViewModel? newValue)
     {
@@ -174,7 +181,11 @@ public sealed partial class ArtSlotViewModel(ArtworkKind kind, string? existingP
 
     private void OnSelectedThumbnailChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ArtOptionViewModel.ThumbnailPath)) OnPropertyChanged(nameof(PreviewPath));
+        if (e.PropertyName is nameof(ArtOptionViewModel.ThumbnailPath) or nameof(ArtOptionViewModel.FullImagePath))
+        {
+            OnPropertyChanged(nameof(PreviewPath));
+            OnPropertyChanged(nameof(LargePreviewPath));
+        }
     }
 
     public void Reset()
@@ -197,6 +208,32 @@ public sealed partial class ArtOptionViewModel(ArtworkImage image) : ObservableO
     [ObservableProperty]
     private string? _thumbnailPath;
 
+    /// <summary>The full-resolution download, once someone has looked at it.</summary>
+    [ObservableProperty]
+    private string? _fullImagePath;
+
+    [ObservableProperty]
+    private bool _isLoadingFullImage;
+
     [ObservableProperty]
     private bool _isSelected;
+
+    /// <summary>Tile size in the picker, shaped like the art piece (about the thumbnail's own size).</summary>
+    public double TileWidth => Image.Kind switch
+    {
+        ArtworkKind.Poster => 180,
+        ArtworkKind.Wide => 300,
+        ArtworkKind.Hero => 390,
+        ArtworkKind.Logo => 280,
+        _ => 128,
+    };
+
+    public double TileHeight => Image.Kind switch
+    {
+        ArtworkKind.Poster => 270,
+        ArtworkKind.Wide => 140,
+        ArtworkKind.Hero => 126,
+        ArtworkKind.Logo => 110,
+        _ => 128,
+    };
 }

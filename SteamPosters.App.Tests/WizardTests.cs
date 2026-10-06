@@ -93,6 +93,10 @@ public class WizardTests
         Assert.Equal(MatchConfidence.Matched, avowed.Confidence);
         Assert.True(avowed.Include);
         Assert.Equal("1-Poster-1", avowed.Poster.Selected!.Image.Id);
+        // All five pieces are auto-picked, but only the chosen thumbnails are downloaded up front.
+        Assert.All(avowed.Slots, s => Assert.Equal($"1-{s.Kind}-1", s.Selected!.Image.Id));
+        Assert.All(avowed.Slots, s => Assert.NotNull(s.Selected!.ThumbnailPath));
+        Assert.All(avowed.Slots, s => Assert.Null(s.Options[1].ThumbnailPath));
         Assert.NotNull(avowed.PosterPreviewPath);
 
         var zelda = games[1];
@@ -129,7 +133,7 @@ public class WizardTests
         Assert.Equal("Picked by you", midx.ConfidenceText);
         Assert.True(midx.Include);
         Assert.Equal("Mystery Island Deluxe", midx.NewName);
-        Assert.Equal("4-Poster-1", midx.Poster.Selected!.Image.Id);
+        Assert.All(midx.Slots, s => Assert.Equal($"4-{s.Kind}-1", s.Selected!.Image.Id));
     }
 
     [Fact]
@@ -146,7 +150,7 @@ public class WizardTests
         Assert.Equal(Zelda1986, zelda.Match);
         Assert.Contains(Totk, zelda.Alternatives);
         Assert.DoesNotContain(Zelda1986, zelda.Alternatives);
-        Assert.Equal("3-Poster-1", zelda.Poster.Selected!.Image.Id);
+        Assert.All(zelda.Slots, s => Assert.Equal($"3-{s.Kind}-1", s.Selected!.Image.Id));
     }
 
     [Fact]
@@ -157,12 +161,22 @@ public class WizardTests
         var review = (ReviewViewModel)main.CurrentStep;
         review.SelectedGame = review.Games[0];
 
-        review.SelectedSlot = review.SelectedGame.Slot(ArtworkKind.Hero);
+        Assert.True(review.SelectedGame.Poster.IsActive);
+        review.SelectSlotCommand.Execute(review.SelectedGame.Slot(ArtworkKind.Hero));
+        Assert.True(review.SelectedSlot!.IsActive);
+        Assert.False(review.SelectedGame.Poster.IsActive);
         await Task.Delay(50); // slot loads in the background when selected
+        Assert.All(review.SelectedSlot.Options, o => Assert.NotNull(o.ThumbnailPath));   // opened: all thumbnails
+        Assert.NotNull(review.SelectedSlot.Selected!.FullImagePath);                      // and the full image
+        Assert.Equal(review.SelectedSlot.Selected.FullImagePath, review.SelectedSlot.LargePreviewPath);
+
         var second = review.SelectedSlot.Options[1];
         review.SelectOptionCommand.Execute(second);
+        await Task.Delay(50);
         Assert.Same(second, review.SelectedSlot.Selected);
         Assert.True(second.IsSelected);
+        Assert.NotNull(second.FullImagePath);
+        Assert.Equal(second.FullImagePath, review.SelectedSlot.LargePreviewPath);
 
         review.KeepCurrentCommand.Execute(null);
         Assert.Null(review.SelectedSlot.Selected);
@@ -176,15 +190,15 @@ public class WizardTests
         var main = await ToReview(steam, Provider());
         var review = (ReviewViewModel)main.CurrentStep;
         review.Games[1].Include = false;                 // leave Zelda alone
-        review.Games[0].NewName = "Avowed";              // unchanged name, poster only
+        review.Games[0].NewName = "Avowed";              // unchanged name, art only
 
         await main.NextCommand.ExecuteAsync(null);
         var apply = Assert.IsType<ApplyViewModel>(main.CurrentStep);
 
         var change = Assert.Single(apply.Plan!.Changes);
         Assert.Equal(("0", 1001u, null as string), (change.ShortcutIndex, change.AppId, change.NewName));
-        Assert.Equal(new[] { ArtworkKind.Poster }, change.Artwork.Keys);
-        Assert.Equal(new[] { "Avowed: poster" }, apply.Lines);
+        Assert.Equal(Enum.GetValues<ArtworkKind>(), change.Artwork.Keys.Order());
+        Assert.Equal(new[] { "Avowed: poster, wide, hero, logo, icon" }, apply.Lines);
         Assert.False(main.NextCommand.CanExecute(null));
     }
 

@@ -77,12 +77,26 @@ public sealed partial class ReviewViewModel : StepViewModel
         SelectedSlot = value?.Poster;
     }
 
-    partial void OnSelectedSlotChanged(ArtSlotViewModel? value) => _ = LoadSelectedSlotAsync();
+    partial void OnSelectedSlotChanged(ArtSlotViewModel? oldValue, ArtSlotViewModel? newValue)
+    {
+        if (oldValue is not null) oldValue.IsActive = false;
+        if (newValue is not null) newValue.IsActive = true;
+        _ = LoadSelectedSlotAsync();
+    }
+
+    [RelayCommand]
+    private void SelectSlot(ArtSlotViewModel? slot)
+    {
+        if (slot is not null) SelectedSlot = slot;
+    }
 
     private async Task LoadSelectedSlotAsync()
     {
-        if (SelectedGame is { } game && SelectedSlot is { } slot && _session.Provider is { } provider)
-            await _artLoader.LoadSlotAsync(provider, game, slot);
+        if (SelectedGame is not { } game || SelectedSlot is not { } slot || _session.Provider is not { } provider) return;
+        var full = slot.Selected is { } selected ? _artLoader.LoadFullImageAsync(selected) : Task.CompletedTask;
+        await _artLoader.LoadSlotAsync(provider, game, slot, allThumbnails: true);
+        await full;
+        if (slot.Selected is { } picked) await _artLoader.LoadFullImageAsync(picked);
     }
 
     private bool CanSearch() => !IsSearching && !string.IsNullOrWhiteSpace(SearchText) && _session.Provider is not null;
@@ -117,6 +131,9 @@ public sealed partial class ReviewViewModel : StepViewModel
         if (SelectedGame is not { } selected || game is null) return;
         selected.PickManually(game);
         ShowAlternatives();
+        // Auto-pick all five pieces for the new game, then show the poster options.
+        if (_session.Provider is { } provider)
+            await Task.WhenAll(selected.Slots.Select(slot => _artLoader.LoadSlotAsync(provider, selected, slot, allThumbnails: false)));
         SelectedSlot = selected.Poster;
         await LoadSelectedSlotAsync();
     }
@@ -124,7 +141,9 @@ public sealed partial class ReviewViewModel : StepViewModel
     [RelayCommand]
     private void SelectOption(ArtOptionViewModel? option)
     {
-        if (SelectedSlot is { } slot && option is not null) slot.Selected = option;
+        if (SelectedSlot is not { } slot || option is null) return;
+        slot.Selected = option;
+        _ = _artLoader.LoadFullImageAsync(option);
     }
 
     /// <summary>Keep whatever Steam has for this piece (don't replace it).</summary>

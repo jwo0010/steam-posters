@@ -103,7 +103,9 @@ public sealed partial class MatchViewModel(AppServices services, WizardSession s
                 try
                 {
                     game.ApplyResult(await matcher.MatchAsync(game.CurrentName, game.Exe, game.LaunchOptions, token));
-                    if (game.Match is not null) await _artLoader.LoadSlotAsync(provider, game, game.Poster, token);
+                    // Auto-pick the best of all five art pieces; the other options load when opened on Review.
+                    if (game.Match is not null)
+                        await Task.WhenAll(game.Slots.Select(slot => _artLoader.LoadSlotAsync(provider, game, slot, allThumbnails: false, token)));
                 }
                 finally
                 {
