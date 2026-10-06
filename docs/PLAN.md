@@ -74,8 +74,8 @@ Read Steam's own list (`shortcuts.vdf`). It already knows every non-Steam game y
 |  GridFolder (art files)   |   - SteamStoreProvider (later)|
 |  ShortcutId (crc calc)    |  ImageCache (on disk)         |
 +---------------------------+-------------------------------+
-|  Storage: %APPDATA%\SteamPosters\ (settings, cache,       |
-|  backups, log)                                            |
+|  Storage: %APPDATA%\SteamPosters\ (settings, backups, log)|
+|  and %LOCALAPPDATA%\SteamPosters\cache (downloaded images) |
 +-----------------------------------------------------------+
 ```
 
@@ -110,7 +110,12 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 - Default account: the MostRecent one in `loginusers.vdf`, else the first with non-Steam games, else the first. (On this PC no account is flagged MostRecent.)
 - Read-only check on the real `shortcuts.vdf`: parsed and re-serialized in memory, byte-identical (2693 bytes); the file was not modified.
 
-**Step 2: SteamGridDB provider + image cache.** Search, fetch grids/heroes/logos/icons, filter by size and style, cache to disk, respect rate limits.
+**Step 2: SteamGridDB provider + image cache. Done (2026-10-06).** Search, fetch grids/heroes/logos/icons, filter by size and style, cache to disk, respect rate limits.
+- Code: `SteamPosters.Artwork` (references Core; Core stays network-free) and `SteamPosters.Artwork.Tests` (fake HTTP handler, no real network; one live smoke test runs only when `STEAMGRIDDB_API_KEY` is set).
+- Ranking: drop NSFW / humor / epilepsy-warning images, prefer Steam's recommended size, then style ("official" logos and icons, "alternate" posters and banners), then score, then upvotes.
+- Limits: at most 4 API calls at once, 30 s timeout per call, HTTP 429 retried up to 3 times honouring Retry-After (capped at 30 s).
+- API key: stored with Windows DPAPI (current user) in `%APPDATA%\SteamPosters\settings`, never in plain text.
+- Image cache: `%LOCALAPPDATA%\SteamPosters\cache` (local, so images don't roam), 20 MB cap per image, PNG / JPEG / WebP / ICO accepted by magic number. **WebP caveat:** Steam's grid folder only reads `.png` and `.jpg`, so WebP images are flagged `NeedsConversion`; conversion is left for the apply step (step 5). Art requests don't filter by format, so some SteamGridDB results may be WebP.
 
 **Step 3: Matching.** Name cleanup rules (strip `.exe`, split CamelCase, drop "Launcher", "Shipping", "Win64", etc.), use parent folder names, fuzzy scoring, confidence levels.
 
