@@ -127,13 +127,17 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 - Offline dry run on the real library: both yuzu entries and Ryujinx are emulators with no game in their launch options; "Launcher" searches its folder ("The Legend of Zelda TotK"); Starfield, ACBlackFlag and Avowed get sensible terms. A live run needs a SteamGridDB key.
 - Live run (2026-10-06, with the user's key): SteamGridDB search returns at most 10 results and ignores words it doesn't know, so "The Legend of Zelda TotK" first matched the 1986 game. Fixed: a short editable list of well-known abbreviations (TotK, BotW, AC, GTA, CoD, ...) is spelled out into an extra search term, unknown abbreviations get a search-only term without them, and names missing words of the search term score lower. Result on the real library: Tears of the Kingdom, Starfield and Avowed Matched; ACBlackFlag Check this (SteamGridDB has a "Black Flag Resynced" entry next to AC IV); yuzu x2 and Ryujinx Not found (emulators).
 
-**Step 4: GUI.** The wizard, built MVVM so the logic stays testable.
+**Step 4: GUI. Done (2026-10-06).** The wizard, built MVVM so the logic stays testable.
+- Avalonia + CommunityToolkit.Mvvm, in the `steamposters` app project. Pages: **Set up** (Steam path, account picker, SteamGridDB key checked with one search then saved encrypted), **Find games** (reads the non-Steam list, matches each game with progress and a Stop button, shows posters and confidence badges; emulators are labelled "Emulator"), **Review** (tick/untick, edit the Steam name, swap poster / wide banner / hero / logo / icon from up to 12 ranked options each, or keep what Steam has), **Apply** (summary of the approved changes; writing comes in step 5).
+- **Manual fix match** (requested 2026-10-06): on Review, "Wrong game? Search for the right one" searches SteamGridDB for any text and picks the result; it starts with the automatic match's alternatives and opens by itself for games that need checking. A hand-picked game counts as confirmed ("Picked by you"), gets ticked, takes the game's name, and reloads its art; the previous match stays in the list as an alternative.
+- The approved changes are collected in an `ApplyPlan` (per game: shortcut index, appid, new name if changed, chosen image per art piece), which step 5 writes into Steam.
+- Tests: `SteamPosters.App.Tests` drives the view models end to end with a fake SteamGridDB, a fake key store and a made-up Steam folder.
 
 **Step 5: Apply flow.** Steam close/restart (or wait for the user to do it), safe write, restore.
 
 **Step 6: Packaging.** Installer, app icon, GitHub Releases, auto-update.
 
-**Step 7 (later, optional):** Remote Play mode, collections, "add games from other launchers", Linux/Deck build, tray icon that watches for newly added games.
+**Step 7 (later, optional):** remember manual match picks so a rescan reuses them, Remote Play mode, collections, "add games from other launchers", Linux/Deck build, tray icon that watches for newly added games.
 
 Each step ends with something you can try, and Claude checks in before starting the next.
 
