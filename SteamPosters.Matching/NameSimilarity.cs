@@ -7,7 +7,7 @@ namespace SteamPosters.Matching;
 /// Fuzzy similarity between a search term and a provider's game name, 0 (unrelated) to 1 (same).
 /// Normalizes case, accents, punctuation, "&amp;", roman numerals and a leading "The", expands
 /// acronyms found in the candidate ("TotK" -> "Tears of the Kingdom"), then takes the better of
-/// a word overlap score and a character bigram score.
+/// a word overlap score and a character bigram score, scaled down by term words the candidate lacks.
 /// </summary>
 public static class NameSimilarity
 {
@@ -26,7 +26,11 @@ public static class NameSimilarity
         a = ExpandAcronyms(a, b);
         if (a.SequenceEqual(b)) return 0.99;
 
-        return Math.Max(WordDice(a, b), BigramDice(string.Concat(a), string.Concat(b)));
+        // Words of the term missing from the candidate count against it, so "The Legend of Zelda"
+        // can't look like a strong match for "The Legend of Zelda TotK".
+        var coverage = (double)a.Count(b.Contains) / a.Count;
+        var overlap = Math.Max(WordDice(a, b), BigramDice(string.Concat(a), string.Concat(b)));
+        return overlap * (0.5 + 0.5 * coverage);
     }
 
     /// <summary>Lowercase words without accents or punctuation; numerals as digits; no leading "the".</summary>

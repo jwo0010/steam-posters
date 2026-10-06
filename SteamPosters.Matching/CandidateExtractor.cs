@@ -13,6 +13,13 @@ public enum TermSource
     ExeName,
     /// <summary>A folder the executable sits in.</summary>
     Folder,
+    /// <summary>Another term with well-known abbreviations spelled out ("TotK" -> "Tears of the Kingdom").</summary>
+    Expanded,
+    /// <summary>
+    /// Another term with unknown abbreviations removed, used only to search: SteamGridDB ignores
+    /// words it doesn't know. Results are scored against the full terms, never this one.
+    /// </summary>
+    SearchOnly,
 }
 
 /// <summary>A cleaned-up name to search for, and where it came from.</summary>
@@ -76,7 +83,60 @@ public static partial class CandidateExtractor
         if (!LooksLikeExeName(appName, exeStem)) Add(appName, TermSource.AppName);
         Add(exeStem, TermSource.ExeName);
         foreach (var folder in MeaningfulFolders(exePath)) Add(folder, TermSource.Folder);
-        return new Candidates(terms, false, null);
+        return new Candidates(WithAbbreviationVariants(terms), false, null);
+    }
+
+    /// <summary>Well-known game abbreviations, spelled out into an extra search term. Extend here.</summary>
+    public static readonly IReadOnlyDictionary<string, string> KnownAbbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["TotK"] = "Tears of the Kingdom", ["BotW"] = "Breath of the Wild", ["OoT"] = "Ocarina of Time",
+        ["LoZ"] = "Legend of Zelda", ["AC"] = "Assassin's Creed", ["GTA"] = "Grand Theft Auto",
+        ["RDR"] = "Red Dead Redemption", ["CoD"] = "Call of Duty", ["MGS"] = "Metal Gear Solid",
+        ["FF"] = "Final Fantasy", ["KH"] = "Kingdom Hearts", ["DMC"] = "Devil May Cry", ["RE"] = "Resident Evil",
+        ["GoW"] = "God of War", ["TLOU"] = "The Last of Us", ["MK"] = "Mortal Kombat", ["SF"] = "Street Fighter",
+        ["NFS"] = "Need for Speed",
+    };
+
+    /// <summary>
+    /// After each term with abbreviations, inserts a spelled-out copy (known abbreviations) and/or a
+    /// search-only copy without them (unknown ones).
+    /// </summary>
+    private static List<SearchTerm> WithAbbreviationVariants(List<SearchTerm> terms)
+    {
+        var result = new List<SearchTerm>();
+        void Add(string text, TermSource source)
+        {
+            if (text.Length >= 2 && !terms.Concat(result).Any(t => string.Equals(t.Text, text, StringComparison.OrdinalIgnoreCase)))
+                result.Add(new SearchTerm(text, source));
+        }
+
+        foreach (var term in terms)
+        {
+            result.Add(term);
+            var words = term.Text.Split(' ');
+            if (!words.Any(IsAbbreviation)) continue;
+
+            if (words.Any(w => IsAbbreviation(w) && KnownAbbreviations.ContainsKey(w)))
+                Add(string.Join(' ', words.Select(w => IsAbbreviation(w) && KnownAbbreviations.TryGetValue(w, out var full) ? full : w)), TermSource.Expanded);
+
+            if (words.Any(w => IsAbbreviation(w) && !KnownAbbreviations.ContainsKey(w)))
+            {
+                var kept = words.Where(w => !IsAbbreviation(w)).ToList();
+                if (kept.Count > 0) Add(string.Join(' ', kept), TermSource.SearchOnly);
+            }
+        }
+        return result;
+    }
+
+    private static readonly HashSet<string> RomanNumerals = new(StringComparer.Ordinal) { "II", "III", "IV", "VI", "VII", "VIII", "IX", "XI", "XII" };
+
+    /// <summary>"TotK", "BotW", "AC", "GTA": 2-5 letters, mixed case with an inner capital, or all capitals.</summary>
+    private static bool IsAbbreviation(string word)
+    {
+        if (word.Length is < 2 or > 5 || !word.All(char.IsLetter) || RomanNumerals.Contains(word)) return false;
+        var allCaps = word.All(char.IsUpper);
+        var innerCapital = word.Skip(1).Any(char.IsUpper) && word.Any(char.IsLower);
+        return allCaps || innerCapital;
     }
 
     /// <summary>The cleaned-up name of the game file in emulator launch options, or null.</summary>
