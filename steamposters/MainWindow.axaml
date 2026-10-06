@@ -8,6 +8,7 @@
         x:Class="steamposters.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Steam Posters"
+        Icon="/Assets/app.ico"
         Width="1100" Height="740" MinWidth="900" MinHeight="600">
 
     <Window.DataTemplates>
@@ -40,6 +41,14 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </DockPanel>
+        </Border>
+
+        <!-- Update ready -->
+        <Border DockPanel.Dock="Top" IsVisible="{Binding HasUpdate}" Background="#202E7D32" Padding="20,8">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock VerticalAlignment="Center" Text="{Binding UpdateVersion, StringFormat='Steam Posters {0} is ready to install.'}" />
+                <Button Content="Restart to update" Command="{Binding RestartToUpdateCommand}" />
+            </StackPanel>
         </Border>
 
         <!-- Navigation -->
