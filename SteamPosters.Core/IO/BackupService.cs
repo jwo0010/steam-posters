@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SteamPosters.Core.IO;
 
@@ -16,8 +17,6 @@ public sealed record BackupSet(string Folder, BackupManifest Manifest);
 public sealed class BackupService
 {
     public const string ManifestFileName = "manifest.json";
-
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private readonly Func<DateTime> _now;
 
@@ -57,7 +56,7 @@ public sealed class BackupService
         }
 
         var manifest = new BackupManifest(now.ToUniversalTime(), description, entries);
-        File.WriteAllText(Path.Combine(folder, ManifestFileName), JsonSerializer.Serialize(manifest, JsonOptions));
+        File.WriteAllText(Path.Combine(folder, ManifestFileName), JsonSerializer.Serialize(manifest, BackupJson.Default.BackupManifest));
         return new BackupSet(folder, manifest);
     }
 
@@ -93,7 +92,7 @@ public sealed class BackupService
         if (!File.Exists(manifestPath)) return null;
         try
         {
-            var manifest = JsonSerializer.Deserialize<BackupManifest>(File.ReadAllText(manifestPath));
+            var manifest = JsonSerializer.Deserialize(File.ReadAllText(manifestPath), BackupJson.Default.BackupManifest);
             return manifest is null ? null : new BackupSet(folder, manifest);
         }
         catch (JsonException)
@@ -102,3 +101,8 @@ public sealed class BackupService
         }
     }
 }
+
+/// <summary>Source-generated JSON for the backup manifest (no reflection), so trimmed or AOT builds keep working.</summary>
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(BackupManifest))]
+internal sealed partial class BackupJson : JsonSerializerContext;

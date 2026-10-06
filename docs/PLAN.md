@@ -140,7 +140,12 @@ Packaging: **Velopack** builds a one-click `Setup.exe` with built-in auto-update
 - Any error after the backup restores it automatically ("everything was put back as it was"). After a successful apply, "Restore previous" puts back every file from that backup (closing Steam the same way) and removes files the apply created.
 - Tests: `ApplyTests` covers Steam closed / running / ignoring shutdown / closed by the user / cancel, restore, automatic rollback, WebP conversion and appid pinning, all on a made-up Steam folder with a pretend Steam client. The real `SteamProcess` (steam.exe -shutdown and restart) is only exercised on a real apply.
 
-**Step 6: Packaging.** Installer, app icon, GitHub Releases, auto-update.
+**Step 6: Packaging. Done (2026-10-06).** Installer, app icon, GitHub Releases, auto-update.
+- App: `SteamPosters.exe`, version 0.1.0, icon `steamposters/Assets/app.ico` (three overlapping posters, drawn with SkiaSharp).
+- Installer: **Velopack** (`Velopack` package + `vpk` pinned as a local dotnet tool in `dotnet-tools.json`). `build/Pack.ps1` publishes self-contained for win-x64 (no .NET install needed) and creates `artifacts/releases/SteamPosters-win-Setup.exe` (~57 MB), a portable zip, and the update packages. It installs per user to `%LOCALAPPDATA%\SteamPosters` with Start menu and desktop shortcuts; no admin rights.
+- Auto-update: on start the installed app checks GitHub Releases in the background, downloads a newer version and shows "Steam Posters x.y.z is ready to install" with **Restart to update** (disabled while Apply is busy). Dev builds (`dotnet run`) skip the check.
+- GitHub Actions: `ci.yml` builds and tests every PR and push to main; `release.yml` runs on a pushed tag `vX.Y.Z`: tests, packs (with a delta update against the previous release) and publishes the GitHub release.
+- JSON is source-generated (SteamGridDB responses, backup manifest), so trimmed or AOT builds can't break JSON reading.
 
 **Step 7 (later, optional):** remember manual match picks so a rescan reuses them, Remote Play mode, collections, "add games from other launchers", Linux/Deck build, tray icon that watches for newly added games.
 
