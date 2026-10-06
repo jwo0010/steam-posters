@@ -1,0 +1,138 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:steamposters.ViewModels"
+             xmlns:art="using:SteamPosters.Artwork"
+             x:Class="steamposters.Views.ReviewView"
+             x:DataType="vm:ReviewViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Classes="h1" Text="Review" />
+            <TextBlock Classes="hint" Text="Untick games to leave alone. Pick a game to fix its name, its match or its art." />
+            <TextBlock Text="{Binding Summary}" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="320,16,*">
+            <!-- Game list -->
+            <ListBox Grid.Column="0" ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GameItemViewModel">
+                        <Grid ColumnDefinitions="Auto,48,*" ColumnSpacing="8">
+                            <CheckBox Grid.Column="0" IsChecked="{Binding Include}" VerticalAlignment="Center" />
+                            <Border Grid.Column="1" Width="48" Height="72" Background="#20808080" CornerRadius="3" ClipToBounds="True">
+                                <Image Source="{Binding PosterPreviewPath, Converter={StaticResource PathToBitmap}}" Stretch="UniformToFill" />
+                            </Border>
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
+                                <TextBlock Text="{Binding NewName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding CurrentName}" Classes="hint" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                <Border Classes="badge" HorizontalAlignment="Left" Background="{Binding Confidence, Converter={StaticResource ConfidenceToBrush}}">
+                                    <TextBlock Text="{Binding ConfidenceText}" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Selected game -->
+            <ScrollViewer Grid.Column="2" IsVisible="{Binding HasSelection}">
+                <StackPanel Spacing="10" DataContext="{Binding SelectedGame}" x:DataType="vm:GameItemViewModel">
+                    <TextBlock Text="{Binding Exe}" Classes="hint" FontSize="12" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Name in Steam:" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding NewName}" Width="380" />
+                        <CheckBox Content="Include" IsChecked="{Binding Include}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Matched to:" />
+                        <TextBlock Text="{Binding MatchText}" FontWeight="SemiBold" />
+                        <Border Classes="badge" Background="{Binding Confidence, Converter={StaticResource ConfidenceToBrush}}">
+                            <TextBlock Text="{Binding ConfidenceText}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Manual fix: search SteamGridDB by hand -->
+                    <Expander Header="Wrong game? Search for the right one" HorizontalAlignment="Stretch"
+                              IsExpanded="{Binding NeedsAttention, Mode=OneWay}">
+                        <StackPanel Spacing="8" DataContext="{Binding $parent[UserControl].DataContext}" x:DataType="vm:ReviewViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox Text="{Binding SearchText}" Width="360" PlaceholderText="Game name">
+                                    <TextBox.KeyBindings>
+                                        <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+                                    </TextBox.KeyBindings>
+                                </TextBox>
+                                <Button Content="Search" Command="{Binding SearchCommand}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding SearchStatus}" Classes="hint" IsVisible="{Binding SearchStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            <ItemsControl ItemsSource="{Binding SearchResults}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="art:ProviderGame">
+                                        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,0,4"
+                                                Command="{Binding $parent[UserControl].((vm:ReviewViewModel)DataContext).PickCommand}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Name}" />
+                                                <TextBlock Text="{Binding ReleaseYear}" Classes="hint" />
+                                                <TextBlock Text="verified" Classes="hint" IsVisible="{Binding Verified}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Expander>
+
+                    <!-- Art picker -->
+                    <StackPanel DataContext="{Binding $parent[UserControl].DataContext}" x:DataType="vm:ReviewViewModel" Spacing="8">
+                        <ListBox ItemsSource="{Binding SelectedGame.Slots}" SelectedItem="{Binding SelectedSlot}">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ArtSlotViewModel">
+                                    <StackPanel Width="96" Spacing="4">
+                                        <Border Height="60" Background="#20808080" CornerRadius="3" ClipToBounds="True">
+                                            <Image Source="{Binding PreviewPath, Converter={StaticResource PathToBitmap}}" Stretch="Uniform" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" HorizontalAlignment="Center" FontSize="12" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding SelectedSlot.Title, StringFormat='Choose a {0}'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Content="Keep what Steam has" Command="{Binding KeepCurrentCommand}" />
+                            <ProgressBar IsIndeterminate="True" Width="120" IsVisible="{Binding SelectedSlot.IsLoading}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding SelectedSlot.Error}" Foreground="#C62828" TextWrapping="Wrap"
+                                   IsVisible="{Binding SelectedSlot.Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                        <ItemsControl ItemsSource="{Binding SelectedSlot.Options}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ArtOptionViewModel">
+                                    <Button Margin="0,0,10,10" Padding="3" ToolTip.Tip="{Binding Description}"
+                                            Command="{Binding $parent[UserControl].((vm:ReviewViewModel)DataContext).SelectOptionCommand}"
+                                            CommandParameter="{Binding}"
+                                            BorderThickness="3"
+                                            Classes.picked="{Binding IsSelected}">
+                                        <Image Source="{Binding ThumbnailPath, Converter={StaticResource PathToBitmap}}"
+                                               Width="150" Height="150" Stretch="Uniform" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+
+    <UserControl.Styles>
+        <Style Selector="Button.picked">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+    </UserControl.Styles>
+</UserControl>

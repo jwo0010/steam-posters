@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:steamposters.ViewModels"
+             x:Class="steamposters.Views.ApplyView"
+             x:DataType="vm:ApplyViewModel">
+    <StackPanel Spacing="12" MaxWidth="760" HorizontalAlignment="Left">
+        <TextBlock Classes="h1" Text="Ready to apply" />
+        <TextBlock Classes="hint" Text="These changes will be written into Steam. Steam has to close while the game list is saved; the app will ask first, back everything up, and reopen Steam afterwards." />
+        <ItemsControl ItemsSource="{Binding Lines}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <TextBlock Text="{Binding}" Margin="0,2" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Content="Apply to Steam" IsEnabled="False" Classes="accent" />
+        <TextBlock Classes="hint" Text="Applying is the next build step (step 5); this preview writes nothing." />
+    </StackPanel>
+</UserControl>

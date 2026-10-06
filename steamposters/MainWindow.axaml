@@ -1,9 +1,55 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:vm="using:steamposters.ViewModels"
+        xmlns:views="using:steamposters.Views"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="720"
         x:Class="steamposters.MainWindow"
-        Title="steamposters">
-    Welcome to Avalonia!
+        x:DataType="vm:MainWindowViewModel"
+        Title="Steam Posters"
+        Width="1100" Height="740" MinWidth="900" MinHeight="600">
+
+    <Window.DataTemplates>
+        <DataTemplate DataType="vm:SetupViewModel"><views:SetupView /></DataTemplate>
+        <DataTemplate DataType="vm:MatchViewModel"><views:MatchView /></DataTemplate>
+        <DataTemplate DataType="vm:ReviewViewModel"><views:ReviewView /></DataTemplate>
+        <DataTemplate DataType="vm:ApplyViewModel"><views:ApplyView /></DataTemplate>
+    </Window.DataTemplates>
+
+    <Window.Styles>
+        <Style Selector="TextBlock.current">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Step header -->
+        <Border DockPanel.Dock="Top" Padding="20,14" BorderThickness="0,0,0,1" BorderBrush="#30808080">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding StepNumber}" VerticalAlignment="Center" Classes="hint" />
+                <ItemsControl ItemsSource="{Binding Steps}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="18" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:StepViewModel">
+                            <TextBlock Text="{Binding Title}" FontSize="15" Classes.current="{Binding IsCurrent}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+
+        <!-- Navigation -->
+        <Border DockPanel.Dock="Bottom" Padding="20,12" BorderThickness="0,1,0,0" BorderBrush="#30808080">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Content="Back" Command="{Binding BackCommand}" MinWidth="90" />
+                <Button Content="Next" Command="{Binding NextCommand}" MinWidth="90" Classes="accent" />
+            </StackPanel>
+        </Border>
+
+        <ContentControl Content="{Binding CurrentStep}" Margin="20" />
+    </DockPanel>
 </Window>

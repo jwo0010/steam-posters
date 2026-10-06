@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:steamposters.ViewModels"
+             x:Class="steamposters.Views.MatchView"
+             x:DataType="vm:MatchViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+            <TextBlock Classes="h1" Text="Finding your games" />
+            <ProgressBar Minimum="0" Maximum="{Binding Total}" Value="{Binding Progress}" IsVisible="{Binding IsBusy}" Height="6" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <Button Content="Stop" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
+                <Button Content="Match again" Command="{Binding RematchCommand}" IsVisible="{Binding !IsBusy}" />
+            </StackPanel>
+        </StackPanel>
+
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Games}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GameItemViewModel">
+                        <StackPanel Width="150" Margin="0,0,14,16" Spacing="4">
+                            <Border Width="150" Height="225" Background="#20808080" CornerRadius="4" ClipToBounds="True">
+                                <Panel>
+                                    <Image Source="{Binding PosterPreviewPath, Converter={StaticResource PathToBitmap}}" Stretch="UniformToFill" />
+                                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsMatching}" VerticalAlignment="Bottom" />
+                                </Panel>
+                            </Border>
+                            <TextBlock Text="{Binding NewName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding CurrentName, StringFormat='was: {0}'}" Classes="hint" FontSize="12" TextTrimming="CharacterEllipsis" />
+                            <Border Classes="badge" HorizontalAlignment="Left" Background="{Binding Confidence, Converter={StaticResource ConfidenceToBrush}}">
+                                <TextBlock Text="{Binding ConfidenceText}" />
+                            </Border>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>
