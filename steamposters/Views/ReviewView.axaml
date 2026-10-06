@@ -83,21 +83,26 @@
 
                     <!-- Art picker -->
                     <StackPanel DataContext="{Binding $parent[UserControl].DataContext}" x:DataType="vm:ReviewViewModel" Spacing="8">
-                        <ListBox ItemsSource="{Binding SelectedGame.Slots}" SelectedItem="{Binding SelectedSlot}">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
+                        <!-- Buttons rather than a ListBox: a ListBox clears its selection when the game changes -->
+                        <ItemsControl ItemsSource="{Binding SelectedGame.Slots}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ArtSlotViewModel">
-                                    <StackPanel Width="96" Spacing="4">
-                                        <Border Height="60" Background="#20808080" CornerRadius="3" ClipToBounds="True">
-                                            <Image Source="{Binding PreviewPath, Converter={StaticResource PathToBitmap}}" Stretch="Uniform" />
-                                        </Border>
-                                        <TextBlock Text="{Binding Title}" HorizontalAlignment="Center" FontSize="12" />
-                                    </StackPanel>
+                                    <Button Padding="4" BorderThickness="3" Classes.picked="{Binding IsActive}"
+                                            Command="{Binding $parent[UserControl].((vm:ReviewViewModel)DataContext).SelectSlotCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Width="104" Spacing="4">
+                                            <Border Height="64" Background="#20808080" CornerRadius="3" ClipToBounds="True">
+                                                <Image Source="{Binding PreviewPath, Converter={StaticResource PathToBitmap}}" Stretch="Uniform" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Title}" HorizontalAlignment="Center" FontSize="12" />
+                                        </StackPanel>
+                                    </Button>
                                 </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="{Binding SelectedSlot.Title, StringFormat='Choose a {0}'}" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -106,6 +111,20 @@
                         </StackPanel>
                         <TextBlock Text="{Binding SelectedSlot.Error}" Foreground="#C62828" TextWrapping="Wrap"
                                    IsVisible="{Binding SelectedSlot.Error, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                        <!-- Large preview of the chosen image, at full resolution once downloaded -->
+                        <Border Background="#20808080" CornerRadius="4" Padding="8" HorizontalAlignment="Left"
+                                IsVisible="{Binding SelectedSlot.LargePreviewPath, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <StackPanel Spacing="6">
+                                <Panel>
+                                    <Image Source="{Binding SelectedSlot.LargePreviewPath, Converter={StaticResource PathToBitmap}, ConverterParameter=1600}"
+                                           MaxHeight="340" MaxWidth="760" Stretch="Uniform" HorizontalAlignment="Left" />
+                                    <ProgressBar IsIndeterminate="True" VerticalAlignment="Bottom"
+                                                 IsVisible="{Binding SelectedSlot.Selected.IsLoadingFullImage}" />
+                                </Panel>
+                                <TextBlock Text="{Binding SelectedSlot.Selected.Description}" Classes="hint" FontSize="12" />
+                            </StackPanel>
+                        </Border>
 
                         <ItemsControl ItemsSource="{Binding SelectedSlot.Options}">
                             <ItemsControl.ItemsPanel>
@@ -118,8 +137,9 @@
                                             CommandParameter="{Binding}"
                                             BorderThickness="3"
                                             Classes.picked="{Binding IsSelected}">
-                                        <Image Source="{Binding ThumbnailPath, Converter={StaticResource PathToBitmap}}"
-                                               Width="150" Height="150" Stretch="Uniform" />
+                                        <Panel Width="{Binding TileWidth}" Height="{Binding TileHeight}" Background="#20808080">
+                                            <Image Source="{Binding ThumbnailPath, Converter={StaticResource PathToBitmap}}" Stretch="Uniform" />
+                                        </Panel>
                                     </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
