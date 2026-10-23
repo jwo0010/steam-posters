@@ -59,6 +59,16 @@ public sealed partial class ReviewViewModel : StepViewModel
 
     public bool HasSelection => SelectedGame is not null;
 
+    public bool? IncludeAll
+    {
+        get => Games.Count == 0 ? false : Games.All(g => g.Include) ? true : Games.All(g => !g.Include) ? false : null;
+        set
+        {
+            if (value is not bool include) return;
+            foreach (var game in Games) game.Include = include;
+        }
+    }
+
     /// <summary>Search results, or the automatic match's alternatives until the user searches.</summary>
     public ObservableCollection<ProviderGame> SearchResults { get; } = new();
 
@@ -170,6 +180,7 @@ public sealed partial class ReviewViewModel : StepViewModel
         var included = Games.Count(g => g.Include);
         var toCheck = Games.Count(g => g.Include && g.NeedsAttention);
         Summary = $"{included} of {Games.Count} games selected" + (toCheck > 0 ? $", {toCheck} to check" : "");
+        OnPropertyChanged(nameof(IncludeAll));
         RaiseCanGoNextChanged();
     }
 }
