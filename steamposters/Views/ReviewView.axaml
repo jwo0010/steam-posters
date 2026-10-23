@@ -9,6 +9,7 @@
             <TextBlock Classes="h1" Text="Review" />
             <TextBlock Classes="hint" Text="Untick games to leave alone. Pick a game to fix its name, its match or its art." />
             <TextBlock Text="{Binding Summary}" />
+            <CheckBox Content="Select all" IsChecked="{Binding IncludeAll}" IsThreeState="True" VerticalAlignment="Center" />
         </StackPanel>
 
         <Grid ColumnDefinitions="320,16,*">
